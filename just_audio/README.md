@@ -13,6 +13,7 @@ Other common audio capabilities are optionally provided by separate plugins:
 * [just_audio_background](https://pub.dev/packages/just_audio_background): Use this to allow your app to play audio in the background and respond to controls on the lockscreen, media notification, headset, AndroidAuto/CarPlay or smart watch.
 * [audio_service](https://pub.dev/packages/audio_service): Use this if your app has more advanced background audio requirements than can be supported by `just_audio_background`.
 * [audio_session](https://pub.dev/packages/audio_session): Use this to configure and manage how your app interacts with other audio apps (e.g. phone call or navigator interruptions).
+* [just_waveform](https://pub.dev/packages/just_waveform): Use this to extract an audio file's waveform suitable for visual rendering.
 
 ## Vote on upcoming features
 
@@ -30,33 +31,35 @@ Please also consider pressing the thumbs up button at the top of [this page](htt
 
 This project is supported by the amazing open source community of GitHub contributors and sponsors. Thank you!
 
+- [libwinmedia](https://github.com/harmonoid/libwinmedia) for backing the Windows and Linux implementation.
+
 ## Features
 
-| Feature                        | Android   | iOS     | macOS   | Web     |
-| -------                        | :-------: | :-----: | :-----: | :-----: |
-| read from URL                  | ✅        | ✅      | ✅      | ✅      |
-| read from file                 | ✅        | ✅      | ✅      | ✅      |
-| read from asset                | ✅        | ✅      | ✅      | ✅      |
-| read from byte stream          | ✅        | ✅      | ✅      | ✅      |
-| request headers                | ✅        | ✅      | ✅      |         |
-| DASH                           | ✅        |         |         |         |
-| HLS                            | ✅        | ✅      | ✅      |         |
-| ICY metadata                   | ✅        | ✅      | ✅      |         |
-| buffer status/position         | ✅        | ✅      | ✅      | ✅      |
-| play/pause/seek                | ✅        | ✅      | ✅      | ✅      |
-| set volume/speed               | ✅        | ✅      | ✅      | ✅      |
-| clip audio                     | ✅        | ✅      | ✅      | ✅      |
-| playlists                      | ✅        | ✅      | ✅      | ✅      |
-| looping/shuffling              | ✅        | ✅      | ✅      | ✅      |
-| compose audio                  | ✅        | ✅      | ✅      | ✅      |
-| gapless playback               | ✅        | ✅      | ✅      |         |
-| report player errors           | ✅        | ✅      | ✅      | ✅      |
-| handle phonecall interruptions | ✅        | ✅      |         |         |
-| buffering/loading options      | ✅        | ✅      | ✅      |         |
-| set pitch                      | ✅        |         |         |         |
-| skip silence                   | ✅        |         |         |         |
-| equalizer                      | ✅        |         |         |         |
-| volume boost                   | ✅        |         |         |         |
+| Feature                        | Android | iOS | macOS | Web | Windows | Linux |
+| ------------------------------ | :-----: | :-: | :---: | :-: | :-----: | :---: |
+| read from URL                  | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| read from file                 | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| read from asset                | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| read from byte stream          | ✅      | ✅  | ✅    | ✅  |         |       |
+| request headers                | ✅      | ✅  | ✅    |     |         |       |
+| DASH                           | ✅      |     |       |     | ✅      |       |
+| HLS                            | ✅      | ✅  | ✅    |     | ✅      |       |
+| ICY metadata                   | ✅      | ✅  | ✅    |     |         |       |
+| buffer status/position         | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| play/pause/seek                | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| set volume/speed               | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| clip audio                     | ✅      | ✅  | ✅    | ✅  |         |       |
+| playlists                      | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| looping/shuffling              | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| compose audio                  | ✅      | ✅  | ✅    | ✅  |         |       |
+| gapless playback               | ✅      | ✅  | ✅    |     | ✅      |       |
+| report player errors           | ✅      | ✅  | ✅    | ✅  | ✅      | ✅    |
+| handle phonecall interruptions | ✅      | ✅  |       |     |         |       |
+| buffering/loading options      | ✅      | ✅  | ✅    |     |         |       |
+| set pitch                      | ✅      |     |       |     |         |       |
+| skip silence                   | ✅      |     |       |     |         |       |
+| equalizer                      | ✅      |     |       |     |         |       |
+| volume boost                   | ✅      |     |       |     |         |       |
 
 ## Experimental features
 
@@ -217,10 +220,12 @@ try {
   // iOS/macOS: maps to NSError.code
   // Android: maps to ExoPlayerException.type
   // Web: maps to MediaError.code
+  // Linux/Windows: maps to PlayerErrorCode.index
   print("Error code: ${e.code}");
   // iOS/macOS: maps to NSError.localizedDescription
   // Android: maps to ExoPlaybackException.getMessage()
-  // Web: a generic message
+  // Web/Linux: a generic message
+  // Windows: MediaPlayerError.message
   print("Error message: ${e.message}");
 } on PlayerInterruptedException catch (e) {
   // This call was interrupted since another audio source was loaded or the
@@ -375,6 +380,26 @@ If you wish to connect to non-HTTPS URLS, add the following to your `Info.plist`
 ```
 
 The macOS player relies on server headers (e.g. `Content-Type`, `Content-Length` and [byte range requests](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/CreatingVideoforSafarioniPhone/CreatingVideoforSafarioniPhone.html#//apple_ref/doc/uid/TP40006514-SW6)) to know how to decode the file and where applicable to report its duration. In the case of files, macOS relies on the file extension.
+
+### Windows
+
+Add the [just_audio_libwinmedia](https://pub.dev/packages/just_audio_libwinmedia) dependency to your `pubspec.yaml` alongside `just_audio`:
+
+```yaml
+dependencies:
+  just_audio: any # substitute version number
+  just_audio_libwinmedia: any # substitute version number
+```
+
+### Linux (untested)
+
+Add the [just_audio_libwinmedia](https://pub.dev/packages/just_audio_libwinmedia) dependency to your `pubspec.yaml` alongside `just_audio`:
+
+```yaml
+dependencies:
+  just_audio: any # substitute version number
+  just_audio_libwinmedia: any # substitute version number
+```
 
 ## Related plugins
 

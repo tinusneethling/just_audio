@@ -1,3 +1,81 @@
+## 0.9.21
+
+* Handle and report network disconnections in StreamAudioSource.
+* Fix iOS/macOS bug starting with empty playlist.
+* Migrate from pedantic to flutter_lints.
+* Accept Longs in AndroidLivePlaybackSpeedControl where appropriate (@aam).
+
+## 0.9.20
+
+* Fix initial position on iOS/macOS when switching sources (@addie9000).
+
+## 0.9.19
+
+* Dispose players on iOS/macOS hot restart.
+* Fix initialIndex out of bounds bug on iOS/macOS.
+
+## 0.9.18
+
+* Fix null duration bug on LockCachingAudioSource.
+
+## 0.9.17
+
+* LockCachingAudioSource works with servers not supporting range requests.
+* Add StreamAudioResponse.rangeRequestsSupported.
+* Fix doc typos (@robert-j-webb)
+
+## 0.9.16
+
+* Fix pubspec declaration for Linux/Windows implementation.
+
+## 0.9.15
+
+* Fix bug initialising proxy on ConcatenatingAudioSource.add.
+
+## 0.9.14
+
+* Fix bug when pausing/stopping quickly after play.
+
+## 0.9.13
+
+* Fix MIME type in LockCachingAudioSource.
+* Add radio/livestream example.
+* Report URL from ICY metadata on iOS/macOS.
+* Update example to just_audio_libwinmedia 0.0.4 (@bdlukaa)
+
+## 0.9.12
+
+* Windows/Linux support (@bdlukaa, credit to @alexmercerind for libwinmedia).
+
+## 0.9.11
+
+* Upgrade Android to ExoPlayer 2.15.0.
+
+## 0.9.10
+
+* Fix Android bug playing after stopping.
+
+## 0.9.9
+
+* Fix web bug adding/removing items while paused.
+
+## 0.9.8
+
+* Fix bug restoring AndroidEqualizer state after stop.
+* Make exceptions implement Exception.
+* Upgrade to ExoPlayer 2.13.3.
+
+## 0.9.7
+
+* Update Gradle version.
+* Change == parameter from dynamic to Object (@cedvdb).
+* Check runtimeType in all == operators.
+* Fix Android compiler warnings.
+
+## 0.9.6
+
+* Fix iOS 12.4 `LockCachingAudioSource` fetch exception (@akindone).
+
 ## 0.9.5
 
 * Fix iOS/macOS bug updating shuffle order.

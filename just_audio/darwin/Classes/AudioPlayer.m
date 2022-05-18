@@ -331,6 +331,8 @@
 }
 
 - (int)getCurrentPosition {
+    // XXX: During load, the second case will be selected returning 0.
+    // TODO: Provide a similar case as _seekPos for _initialPos.
     if (CMTIME_IS_VALID(_seekPos)) {
         return (int)(1000 * CMTimeGetSeconds(_seekPos));
     } else if (_indexedAudioSources && _indexedAudioSources.count > 0) {
@@ -406,23 +408,20 @@
 }
 
 - (void)metadataOutput:(AVPlayerItemMetadataOutput *)output didOutputTimedMetadataGroups:(NSArray<AVTimedMetadataGroup *> *)groups fromPlayerItemTrack:(AVPlayerItemTrack *)track {
+    // ICY headers aren't available here. Maybe do this in the proxy.
     BOOL hasIcyData = NO;
     NSString *title = (NSString *)[NSNull null];
+    NSString *url = (NSString *)[NSNull null];
     for (int i = 0; i < groups.count; i++) {
-        //NSLog(@"group %d", i);
         AVTimedMetadataGroup *group = groups[i];
         for (int j = 0; j < group.items.count; j++) {
-            //NSLog(@"item %d", j);
-            AVMetadataItem *item = group.items[i];
-            //NSLog(@"key: %@", item.key);
-            //NSLog(@"keySpace: %@", item.keySpace);
-            //NSLog(@"commonKey: %@", item.commonKey);
-            //NSLog(@"value: %@", item.value);
-            //NSLog(@"identifier: %@", item.identifier);
-            // TODO: Detect more metadata
+            AVMetadataItem *item = group.items[j];
             if ([@"icy/StreamTitle" isEqualToString:item.identifier]) {
                 hasIcyData = YES;
                 title = (NSString *)item.value;
+            } else if ([@"icy/StreamUrl" isEqualToString:item.identifier]) {
+                hasIcyData = YES;
+                url = (NSString *)item.value;
             }
         }
     }
@@ -430,6 +429,7 @@
         _icyMetadata = @{
             @"info": @{
                 @"title": title,
+                @"url": url,
             },
         };
         [self broadcastPlaybackEvent];
@@ -579,9 +579,8 @@
         [self abortExistingConnection];
     }
     _loadResult = result;
-    _index = (initialIndex != (id)[NSNull null]) ? [initialIndex intValue] : 0;
     _processingState = loading;
-    [self updatePosition];
+    _index = (initialIndex != (id)[NSNull null]) ? [initialIndex intValue] : 0;
     // Remove previous observers
     if (_indexedAudioSources) {
         for (int i = 0; i < [_indexedAudioSources count]; i++) {
@@ -630,6 +629,7 @@
         [self addItemObservers:source.playerItem];
         source.playerItem.audioSource = source;
     }
+    [self updatePosition];
     [self updateOrder];
     // Set up an empty player
     if (!_player) {
@@ -667,7 +667,8 @@
         [_indexedAudioSources[i] attach:_player initialPos:(i == _index ? initialPosition : kCMTimeInvalid)];
     }
 
-    if (_player.currentItem.status == AVPlayerItemStatusReadyToPlay) {
+    if (_indexedAudioSources.count == 0 || !_player.currentItem ||
+            _player.currentItem.status == AVPlayerItemStatusReadyToPlay) {
         _processingState = ready;
         _loadResult(@{@"duration": @([self getDurationMicroseconds])});
         _loadResult = nil;
