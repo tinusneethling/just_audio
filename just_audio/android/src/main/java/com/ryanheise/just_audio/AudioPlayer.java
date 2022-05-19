@@ -7,6 +7,7 @@ import android.media.audiofx.LoudnessEnhancer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLivePlaybackSpeedControl;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -14,12 +15,13 @@ import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.LivePlaybackSpeedControl;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.MediaItem;
+import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.Player.PositionInfo;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.audio.AudioAttributes;
-import com.google.android.exoplayer2.audio.AudioListener;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.DrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
@@ -30,7 +32,6 @@ import com.google.android.exoplayer2.metadata.icy.IcyHeaders;
 import com.google.android.exoplayer2.metadata.icy.IcyInfo;
 import com.google.android.exoplayer2.source.ClippingMediaSource;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
-import com.google.android.exoplayer2.source.LoopingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.ShuffleOrder;
@@ -44,7 +45,6 @@ import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.Util;
 import io.flutter.Log;
@@ -64,7 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-public class AudioPlayer implements MethodCallHandler, Player.EventListener, AudioListener, MetadataOutput {
+public class AudioPlayer implements MethodCallHandler, Player.Listener, MetadataOutput {
 
     static final String TAG = "AudioPlayer";
 
@@ -104,7 +104,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
     private Integer audioSessionId;
     private MediaSource mediaSource;
     private Integer currentIndex;
-    private final Handler handler = new Handler();
+    private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable bufferWatcher = new Runnable() {
         @Override
         public void run() {
@@ -164,10 +164,10 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
                 DefaultLivePlaybackSpeedControl.Builder builder = new DefaultLivePlaybackSpeedControl.Builder()
                     .setFallbackMinPlaybackSpeed((float)((double)((Double)livePlaybackSpeedControlMap.get("fallbackMinPlaybackSpeed"))))
                     .setFallbackMaxPlaybackSpeed((float)((double)((Double)livePlaybackSpeedControlMap.get("fallbackMaxPlaybackSpeed"))))
-                    .setMinUpdateIntervalMs((int)((getLong(livePlaybackSpeedControlMap.get("minUpdateInterval")))/1000))
+                    .setMinUpdateIntervalMs(((getLong(livePlaybackSpeedControlMap.get("minUpdateInterval")))/1000))
                     .setProportionalControlFactor((float)((double)((Double)livePlaybackSpeedControlMap.get("proportionalControlFactor"))))
-                    .setMaxLiveOffsetErrorMsForUnitSpeed((int)((getLong(livePlaybackSpeedControlMap.get("maxLiveOffsetErrorForUnitSpeed")))/1000))
-                    .setTargetLiveOffsetIncrementOnRebufferMs((int)((getLong(livePlaybackSpeedControlMap.get("targetLiveOffsetIncrementOnRebuffer")))/1000))
+                    .setMaxLiveOffsetErrorMsForUnitSpeed(((getLong(livePlaybackSpeedControlMap.get("maxLiveOffsetErrorForUnitSpeed")))/1000))
+                    .setTargetLiveOffsetIncrementOnRebufferMs(((getLong(livePlaybackSpeedControlMap.get("targetLiveOffsetIncrementOnRebuffer")))/1000))
                     .setMinPossibleLiveOffsetSmoothingFactor((float)((double)((Double)livePlaybackSpeedControlMap.get("minPossibleLiveOffsetSmoothingFactor"))));
                 livePlaybackSpeedControl = builder.build();
             }
@@ -251,10 +251,10 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
     }
 
     @Override
-    public void onPositionDiscontinuity(int reason) {
+    public void onPositionDiscontinuity(PositionInfo oldPosition, PositionInfo newPosition, int reason) {
         updatePosition();
         switch (reason) {
-        case Player.DISCONTINUITY_REASON_PERIOD_TRANSITION:
+        case Player.DISCONTINUITY_REASON_AUTO_TRANSITION:
         case Player.DISCONTINUITY_REASON_SEEK:
             updateCurrentIndex();
             break;
@@ -276,8 +276,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
         if (player.getPlaybackState() == Player.STATE_ENDED) {
             try {
                 if (player.getPlayWhenReady()) {
-                    if (player.hasNext()) {
-                        player.next();
+                    if (player.hasNextWindow()) {
+                        player.seekToNextWindow();
                     } else if (lastPlaylistLength == 0 && player.getMediaItemCount() > 0) {
                         player.seekTo(0, 0L);
                     }
@@ -358,26 +358,33 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
     }
 
     @Override
-    public void onPlayerError(ExoPlaybackException error) {
-        switch (error.type) {
-        case ExoPlaybackException.TYPE_SOURCE:
-            Log.e(TAG, "TYPE_SOURCE: " + error.getSourceException().getMessage());
-            break;
+    public void onPlayerError(PlaybackException error) {
+        if (error instanceof ExoPlaybackException) {
+            final ExoPlaybackException exoError = (ExoPlaybackException)error;
+            switch (exoError.type) {
+            case ExoPlaybackException.TYPE_SOURCE:
+                Log.e(TAG, "TYPE_SOURCE: " + exoError.getSourceException().getMessage());
+                break;
 
-        case ExoPlaybackException.TYPE_RENDERER:
-            Log.e(TAG, "TYPE_RENDERER: " + error.getRendererException().getMessage());
-            break;
+            case ExoPlaybackException.TYPE_RENDERER:
+                Log.e(TAG, "TYPE_RENDERER: " + exoError.getRendererException().getMessage());
+                break;
 
-        case ExoPlaybackException.TYPE_UNEXPECTED:
-            Log.e(TAG, "TYPE_UNEXPECTED: " + error.getUnexpectedException().getMessage());
-            break;
+            case ExoPlaybackException.TYPE_UNEXPECTED:
+                Log.e(TAG, "TYPE_UNEXPECTED: " + exoError.getUnexpectedException().getMessage());
+                break;
 
-        default:
-            Log.e(TAG, "default: " + error.getUnexpectedException().getMessage());
+            default:
+                Log.e(TAG, "default ExoPlaybackException: " + exoError.getUnexpectedException().getMessage());
+            }
+            // TODO: send both errorCode and type
+            sendError(String.valueOf(exoError.type), exoError.getMessage());
+        } else {
+            Log.e(TAG, "default PlaybackException: " + error.getMessage());
+            sendError(String.valueOf(error.errorCode), error.getMessage());
         }
-        sendError(String.valueOf(error.type), error.getMessage());
         errorCount++;
-        if (player.hasNext() && currentIndex != null && errorCount <= 5) {
+        if (player.hasNextWindow() && currentIndex != null && errorCount <= 5) {
             int nextIndex = currentIndex + 1;
             Timeline timeline = player.getCurrentTimeline();
             // This condition is due to: https://github.com/ryanheise/just_audio/pull/310
@@ -634,7 +641,11 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
         case "looping":
             Integer count = (Integer)map.get("count");
             MediaSource looperChild = getAudioSource(map.get("child"));
-            return new LoopingMediaSource(looperChild, count);
+            MediaSource[] looperChildren = new MediaSource[count];
+            for (int i = 0; i < looperChildren.length; i++) {
+                looperChildren[i] = looperChild;
+            }
+            return new ConcatenatingMediaSource(looperChildren);
         default:
             throw new IllegalArgumentException("Unknown AudioSource type: " + map.get("type"));
         }
@@ -687,12 +698,9 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
 
     private DataSource.Factory buildDataSourceFactory() {
         String userAgent = Util.getUserAgent(context, "just_audio");
-        DataSource.Factory httpDataSourceFactory = new DefaultHttpDataSourceFactory(
-                userAgent,
-                DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS,
-                DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS,
-                true
-        );
+        DataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory()
+            .setUserAgent(userAgent)
+            .setAllowCrossProtocolRedirects(true);
         return new DefaultDataSourceFactory(context, httpDataSourceFactory);
     }
 
@@ -733,9 +741,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
             }
             player = builder.build();
             setAudioSessionId(player.getAudioSessionId());
-            player.addMetadataOutput(this);
             player.addListener(this);
-            player.addAudioListener(this);
         }
     }
 
