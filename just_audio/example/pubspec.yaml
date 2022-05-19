@@ -16,6 +16,7 @@ dependencies:
   just_audio:
     path: ../
 
+
 # Uncomment when testing platform interface changes.
 # dependency_overrides:
 #   just_audio_platform_interface:
