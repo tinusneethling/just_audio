@@ -2,6 +2,24 @@
 
 * 
 
+## 0.9.28
+
+* Recursively apply headers to HLS fragments.
+* Add positionDiscontinuityStream.
+
+## 0.9.27
+
+* Support offload scheduling on Android.
+* Fix iOS/macOS documentation for non-HTTP URLS and proxy usage.
+
+## 0.9.26
+
+* Auto-correct invalid HTTP headers in proxy.
+
+## 0.9.25
+
+* Fix compile issue with Android SDK 33.
+
 ## 0.9.24
 
 * Bump Android compileSdkVersion to 31.
