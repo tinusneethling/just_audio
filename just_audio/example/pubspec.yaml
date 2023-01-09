@@ -10,8 +10,9 @@ dependencies:
     sdk: flutter
   audio_session: ^0.1.11
   rxdart: ^0.27.7
-  just_audio_mpv: ^0.1.6
-  just_audio_windows: ^0.2.0
+  just_audio_mpv:
+    path: ../../../just_audio_mpv
+  #just_audio_windows: ^0.2.0
   # Other platform implementations below:
   # just_audio_libwinmedia: ^0.0.4
   just_audio:
@@ -19,10 +20,10 @@ dependencies:
 
 # Uncomment when testing platform interface changes.
 # dependency_overrides:
-#   just_audio_platform_interface:
-#     path: ../../just_audio_platform_interface
-#   just_audio_web:
-#     path: ../../just_audio_web
+  just_audio_platform_interface:
+     path: ../../just_audio_platform_interface
+  just_audio_web:
+     path: ../../just_audio_web
 
 dev_dependencies:
   # TODO: uncomment these dependencies when they have nullsafe versions.
