@@ -2116,7 +2116,7 @@ abstract class AudioSource {
   /// AudioSource.uri(Uri.file(filePath));
   /// ```
   static UriAudioSource file(String filePath, {dynamic tag}) {
-    return AudioSource.uri(Uri.file(filePath));
+    return AudioSource.uri(Uri.file(filePath), tag: tag);
   }
 
   /// Convenience method to create an audio source for an asset.
@@ -2133,7 +2133,7 @@ abstract class AudioSource {
       {String? package, dynamic tag}) {
     final keyName =
         package == null ? assetPath : 'packages/$package/$assetPath';
-    return AudioSource.uri(Uri.parse('asset:///$keyName'));
+    return AudioSource.uri(Uri.parse('asset:///$keyName'), tag: tag);
   }
 
   AudioSource() : _id = _uuid.v4();
