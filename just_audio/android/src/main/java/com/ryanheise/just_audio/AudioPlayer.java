@@ -24,10 +24,8 @@ import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.Tracks;
 import com.google.android.exoplayer2.audio.AudioAttributes;
-import com.google.android.exoplayer2.drm.DrmSessionManagerProvider;
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
-import com.google.android.exoplayer2.drm.DrmSessionManager;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.LocalMediaDrmCallback;
 import com.google.android.exoplayer2.metadata.Metadata;
@@ -593,41 +591,45 @@ public class AudioPlayer implements MethodCallHandler, Player.Listener, Metadata
         return mediaSource;
     }
 
-    private DrmSessionManagerProvider drmSessionManagerProvider(Map<?, ?> map){
-        Map<?, ?> drm = (Map<?, ?>) map.get("drm");
+    private MediaSource.Factory applyDrm(MediaSource.Factory factory, Map<?, ?> map){
+                Map<?, ?> drm = (Map<?, ?>) map.get("drm");
         if(drm!=null){
             if (drm.get("clearKey") != null) {
-                return mediaItem -> new DefaultDrmSessionManager.Builder()
-                        .setUuidAndExoMediaDrmProvider(C.CLEARKEY_UUID, FrameworkMediaDrm.DEFAULT_PROVIDER)
-                        .build(new LocalMediaDrmCallback(((String) drm.get("clearKey")).getBytes()));
+                factory.setDrmSessionManagerProvider(
+                        mediaItem -> new DefaultDrmSessionManager.Builder()
+                               .setUuidAndExoMediaDrmProvider(C.CLEARKEY_UUID, FrameworkMediaDrm.DEFAULT_PROVIDER)
+                               .build(new LocalMediaDrmCallback(((String) drm.get("clearKey")).getBytes())));
             }
+
         }
-        return  null;
+        return factory;
     }
 
     private MediaSource decodeAudioSource(final Object json) {
         Map<?, ?> map = (Map<?, ?>)json;
         String id = (String)map.get("id");
-        DrmSessionManagerProvider drmSessionManagerProvider = drmSessionManagerProvider(map);
         switch ((String)map.get("type")) {
         case "progressive":
-            return new ProgressiveMediaSource.Factory(buildDataSourceFactory(), extractorsFactory)
-                        .setDrmSessionManagerProvider(drmSessionManagerProvider)
+            return applyDrm(
+                    new ProgressiveMediaSource.Factory(buildDataSourceFactory(), extractorsFactory)
+                    ,map)
                     .createMediaSource(new MediaItem.Builder()
                             .setUri(Uri.parse((String)map.get("uri")))
                             .setTag(id)
                             .build());
         case "dash":
-            return new DashMediaSource.Factory(buildDataSourceFactory())
-                        .setDrmSessionManagerProvider(drmSessionManagerProvider)
+            return applyDrm(
+                    new DashMediaSource.Factory(buildDataSourceFactory())
+                        ,map)
                     .createMediaSource(new MediaItem.Builder()
                             .setUri(Uri.parse((String)map.get("uri")))
                             .setMimeType(MimeTypes.APPLICATION_MPD)
                             .setTag(id)
                             .build());
         case "hls":
-            return new HlsMediaSource.Factory(buildDataSourceFactory())
-                       .setDrmSessionManagerProvider(drmSessionManagerProvider)
+            return applyDrm(
+                    new HlsMediaSource.Factory(buildDataSourceFactory())
+                       ,map)
                     .createMediaSource(new MediaItem.Builder()
                             .setUri(Uri.parse((String)map.get("uri")))
                             .setMimeType(MimeTypes.APPLICATION_M3U8)
